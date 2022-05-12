@@ -296,8 +296,8 @@ class PostprocessYOLO(object):
         # for bounding boxes, their corresponding category predictions and their confidences:
         boxes, categories, confidences = list(), list(), list()
         
-        for output, mask in zip(outputs_reshaped, self.masks):
-            box, category, confidence = self._process_feats(output, mask)
+        for i, (output, mask) in enumerate(zip(outputs_reshaped, self.masks)):
+            box, category, confidence = self._process_feats(i, output, mask)
             box, category, confidence = self._filter_boxes(box, category, confidence)
             boxes.append(box)
             categories.append(category)
@@ -336,12 +336,13 @@ class PostprocessYOLO(object):
 
         return boxes, categories, confidences
 
-    def _process_feats(self, output_reshaped, mask):
+    def _process_feats(self, idx, output_reshaped, mask):
         """Take in a reshaped YOLO output in height,width,3,85 format together with its
         corresponding YOLO mask and return the detected bounding boxes, the confidence,
         and the class probability in each cell/pixel.
 
         Keyword arguments:
+        idx -- index of header (yolo outputs)
         output_reshaped -- reshaped YOLO output as NumPy arrays with shape (height,width,3,85)
         mask -- 2-dimensional tuple with mask specification for this output
         """
@@ -372,8 +373,9 @@ class PostprocessYOLO(object):
         box_confidence = np.expand_dims(box_confidence, axis=-1)
         box_class_probs = sigmoid_v(output_reshaped[..., 5:])
 
-        col = np.tile(np.arange(0, grid_w), grid_h).reshape(-1, grid_w)
-        row = np.tile(np.arange(0, grid_h).reshape(-1, 1), grid_w)
+        grid_init = (idx + 1) % 2
+        col = np.tile(np.arange(grid_init, grid_init + grid_w), grid_h).reshape(-1, grid_w)
+        row = np.tile(np.arange(grid_init, grid_init + grid_h).reshape(-1, 1), grid_w)
 
         col = col.reshape(grid_h, grid_w, 1, 1).repeat(3, axis=-2)
         row = row.reshape(grid_h, grid_w, 1, 1).repeat(3, axis=-2)
